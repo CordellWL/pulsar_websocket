@@ -1,23 +1,21 @@
 package com.fujitsu.tti.controller;
 
-import com.fujitsu.tti.MQServer.Pulsar;
+import com.fujitsu.tti.MQServer.ConsumerClient;
+import com.fujitsu.tti.Pojo.MyConsumer;
 import io.github.majusko.pulsar.annotation.PulsarConsumer;
+import io.github.majusko.pulsar.collector.ConsumerCollector;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.timeout.IdleStateEvent;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Consumer;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.util.MultiValueMap;
 import org.yeauty.annotation.*;
 import org.yeauty.pojo.Session;
 
-import javax.annotation.PostConstruct;
-import javax.annotation.Resource;
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -29,17 +27,23 @@ import java.util.concurrent.ConcurrentHashMap;
 public class WebSockerController {
 
         @Autowired
-        Pulsar pulsar;
+        ConsumerCollector consumerCollector;
 
+        @Autowired
+        ConsumerClient client;
+
+        public static final Map<Session,Consumer<?>> CONSUMERS =new ConcurrentHashMap<>();
 
         private static final Map<String,Session> CONNECTION =new ConcurrentHashMap<>();
 
-        @PulsarConsumer(topic="example-string-topic", clazz=String.class)
-        public void send(String message){
-            Session session = CONNECTION.get("1");
-            System.out.println("开始发");
-            session.sendText(message);
-        }
+//        @PulsarConsumer(topic="example-string-topic", clazz=String.class)
+//        public void send(String message){
+//            Session session = CONNECTION.get("1");
+//            System.out.println("开始发");
+//            session.sendText(message);
+//        }
+
+
 
         @BeforeHandshake
         public void handshake(Session session, HttpHeaders headers, @RequestParam String req, @RequestParam MultiValueMap reqMap, @PathVariable String arg, @PathVariable Map pathMap){
@@ -55,24 +59,26 @@ public class WebSockerController {
         @OnOpen
         public void onOpen(Session session, HttpHeaders headers, @RequestParam String req, @RequestParam MultiValueMap reqMap, @PathVariable String arg, @PathVariable Map pathMap){
             System.out.println("new connection");
+            MyConsumer myConsumer=new MyConsumer("example-string-topic",session);
+            Consumer<?> demo = client.subscribe("demo", myConsumer);
+            CONSUMERS.put(session,demo);
 //            System.out.println(req);
 
         }
         @OnClose
         public void onClose(Session session) throws IOException {
-            //todo 关闭订阅
             System.out.println("one connection closed");
+            Consumer<?> consumer = CONSUMERS.get(session);
+            consumer.close();
         }
         @OnError
         public void onError(Session session, Throwable throwable) {
-
             throwable.printStackTrace();
+            session.close();
         }
         @OnMessage
         public void onMessage(Session session, String message) throws InterruptedException {
-            //todo 创建pulsar订阅
             System.out.println(message);
-
             session.sendText("Hello Netty!");
         }
         @OnBinary
