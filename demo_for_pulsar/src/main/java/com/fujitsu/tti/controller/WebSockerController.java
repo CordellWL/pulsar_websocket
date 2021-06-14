@@ -36,33 +36,30 @@ public class WebSockerController {
 
         private static final Map<String,Session> CONNECTION =new ConcurrentHashMap<>();
 
-//        @PulsarConsumer(topic="example-string-topic", clazz=String.class)
-//        public void send(String message){
-//            Session session = CONNECTION.get("1");
-//            System.out.println("开始发");
-//            session.sendText(message);
-//        }
-
-
-
         @BeforeHandshake
         public void handshake(Session session, HttpHeaders headers, @RequestParam String req, @RequestParam MultiValueMap reqMap, @PathVariable String arg, @PathVariable Map pathMap){
             session.setSubprotocols("stomp");
-//            if (!"ok".equals(req)){
-//                System.out.println("Authentication failed!");
-//                session.close();
-//            }
             System.out.println("Ok");
             CONNECTION.put("1",session);
+
             //todo创建一个新的监听
         }
         @OnOpen
         public void onOpen(Session session, HttpHeaders headers, @RequestParam String req, @RequestParam MultiValueMap reqMap, @PathVariable String arg, @PathVariable Map pathMap){
             System.out.println("new connection");
+//            Object subprotocols = session.getAttribute("subprotocols");
+            Consumer<?> demo=null;
+            if(arg.equals("demo2")){
             MyConsumer myConsumer=new MyConsumer("example-string-topic",session);
-            Consumer<?> demo = client.subscribe("demo", myConsumer);
+                 demo = client.subscribe("demo", myConsumer);
+                CONSUMERS.put(session,demo);
+
+            }else{
+                MyConsumer myConsumer=new MyConsumer("example-string-topic"+"1",session);
+                demo = client.subscribe("demo", myConsumer);
+                CONSUMERS.put(session,demo);
+            }
             CONSUMERS.put(session,demo);
-//            System.out.println(req);
 
         }
         @OnClose

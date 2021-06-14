@@ -36,6 +36,7 @@ public class ConsumerClient {
     private StringValueResolver stringValueResolver;
 
     public Consumer<?> subscribe(String name, MyConsumer holder) {
+        //todo 基于链接信息进行过滤
         try {
             final ConsumerBuilder<?> consumerBuilder = pulsarClient
                     .newConsumer(SchemaUtils.getSchema(Serialization.JSON,
@@ -45,9 +46,11 @@ public class ConsumerClient {
                     .topic(topicUrlService
                             .buildTopicUrl(holder.getTopic()))
                     .subscriptionType(SubscriptionType.Exclusive)
-                    .messageListener((consumer, msg) -> {
+                    .messageListener(
+                            (consumer, msg) -> {
                         try {
                             Session session = holder.getSession();
+                            System.out.println(session+"收到"+msg.getValue());
                             session.sendText((String) msg.getValue());
                             consumer.acknowledge(msg);
                         } catch (Exception e) {
